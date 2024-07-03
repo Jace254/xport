@@ -36,7 +36,7 @@ pub fn app_run() {
         (sh / 2.0) as i32 - 70,
         340,
         140,
-        "Snap",
+        "Xport",
     );
     wind.set_color(Color::from_hex_str("#FFFFFF").expect("Could not set window Hex"));
     let mut host_ipt = Input::new(80, 20, 200, 25, "Host");
@@ -97,7 +97,7 @@ fn draw(host: String, pwd: String) {
     let (sw, sh) = app::screen_size();
     let mut wind_screen = Window::default()
         .with_size((sw / 2.0) as i32, (sh / 2.0) as i32)
-        .with_label("Snap");
+        .with_label("Xport");
     let mut frame = Frame::default().size_of(&wind_screen);
     wind_screen.make_resizable(true);
     wind_screen.end();

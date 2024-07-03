@@ -4,6 +4,7 @@ pub fn bgra_to_i420(width: usize, height: usize, src: &[u8], dest: &mut Vec<u8>)
         dest.set_len(0);
     }
 
+    // Y
     for y in 0..height {
         for x in 0..width {
             let o = y * stride + 4 * x;
@@ -17,6 +18,7 @@ pub fn bgra_to_i420(width: usize, height: usize, src: &[u8], dest: &mut Vec<u8>)
         }
     }
 
+    // U
     for y in (0..height).step_by(2) {
         for x in (0..width).step_by(2) {
             let o = y * stride + 4 * x;
@@ -30,6 +32,7 @@ pub fn bgra_to_i420(width: usize, height: usize, src: &[u8], dest: &mut Vec<u8>)
         }
     }
 
+    // V
     for y in (0..height).step_by(2) {
         for x in (0..width).step_by(2) {
             let o = y * stride + 4 * x;
