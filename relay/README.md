@@ -2,17 +2,13 @@
 
 The project relay server
 
-## Installation
-
-TODO: Write installation instructions here
-
 ## Usage
 
-TODO: Write usage instructions here
+crystal build ./src/relay.cr
 
 ## Development
 
-TODO: Write development instructions here
+crystal run ./src/relay.cr
 
 ## Contributors
 
