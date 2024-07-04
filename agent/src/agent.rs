@@ -1,19 +1,25 @@
 use crate::key_mouse;
 use crate::screen::Cap;
 use enigo::Enigo;
-use enigo::KeyboardControllable;
-use enigo::MouseControllable;
-use flate2::Compression;
-use flate2::write::DeflateEncoder;
+use enigo::{KeyboardControllable, MouseControllable };
+use flate2::{
+    Compression,
+    write::DeflateEncoder
+};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::Hasher;
-use std::io::Read;
-use std::io::Write;
+use std::io::{Read, Write};
 use std::net::TcpStream;
-use std::sync::mpsc::channel;
+use std::sync::mpsc::{
+    channel,
+    Sender, 
+    Receiver
+};
+use std::time::Duration;
 use rayon::prelude::*;
+use std::thread;
 
-pub fn run(port: u16, pwd: String) {
+pub fn run(host: String, pwd: String) {
     let mut hasher = DefaultHasher::new();
     hasher.write(pwd.as_bytes());
     let pk = hasher.finish();
@@ -27,63 +33,89 @@ pub fn run(port: u16, pwd: String) {
         (pk >> (1 * 8)) as u8,
         pk as u8,
     ];
-    let (tx4, rx) = channel::<TcpStream>();
-    if cfg!(target_os = "windows") {
-        std::thread::spawn(move || {
-            let mut stream = TcpStream::connect(format!("127.0.0.1:{}", port)).unwrap();
-            stream.write_all(b"agent\n").unwrap();
-            tx4.send(stream).unwrap();
-        });
-    }
 
     loop {
-        match rx.recv() {
-            Ok(mut stream) => {
-                // Check connection validity
-                let mut check = [0u8; 8];
-                match stream.read_exact(&mut check) {
-                    Ok(_) => {
-                        println!("check {:?}", check);
-                        if suc != check {
-                            println!("Password error");
-                            let _ = stream.write_all(&[2]);
-                            continue;
-                        } else {
-                            println!("Succesfully accessed");
-                        }
-                    }
-                    Err(_) => {
-                        println!("Request error");
-                        continue;
-                    }
-                }
-                if let Err(_) = stream.write_all(&[1]) {
-                    continue;
-                }
-                let ss = stream.try_clone().unwrap();
-                let th1 = std::thread::spawn(move || {
-                    if let Err(e) = std::panic::catch_unwind(||{
-                        screen_stream(ss);
-                    }) {
-                        eprintln!("{:?}", e);
-                    }
-                });
-                let th2 = std::thread::spawn(move || {
-                    if let Err(e) = std::panic::catch_unwind(||{
-                        event(stream);
-                    }) {
-                        eprintln!("{:?}", e);
-                    }
-                });
-                th1.join().unwrap();
-                th2.join().unwrap();
+        let (tx4, rx) = channel::<TcpStream>();
+        let tx_clone = tx4.clone();
+        let host_clone = host.clone();
+
+        thread::spawn(move || {
+            connect_and_send(host_clone, tx_clone)
+        });
+
+        match handle_connection(rx, &suc) {
+            Ok(()) => {
                 println!("Break !");
+                // Add a small delay before attempting to reconnect
+                thread::sleep(Duration::from_secs(1));
             }
-            Err(_) => {
-                return;
+            Err(e) => {
+                eprintln!("Error: {:?}", e);
+                // Add a small delay before attempting to reconnect
+                thread::sleep(Duration::from_secs(1));
             }
         }
     }
+
+}
+
+fn connect_and_send(host: String, tx: Sender<TcpStream>) {
+    loop  {
+        let hc = host.clone();
+
+        // create stream channel
+        match TcpStream::connect(hc) {
+            Ok(mut stream) => {
+                if stream.write_all(b"agent\n").is_ok() {
+                    if tx.send(stream).is_ok() {
+                        break;
+                    }
+                }
+            }
+            Err(_) => {
+                thread::sleep(Duration::from_secs(1))
+            }
+        }
+
+    }
+}
+
+fn handle_connection(rx: Receiver<TcpStream>, suc: &[u8; 8]) -> Result<(), Box<dyn std::error::Error>> {
+    let mut stream = rx.recv()?;
+
+    // Check connection validity
+    let mut check = [0u8; 8];
+    stream.read_exact(&mut check)?;
+    println!("check {:?}", check);
+    if suc != &check {
+        println!("Password error");
+        stream.write_all(&[2])?;
+        return Ok(());
+    }
+    println!("Successfully accessed");
+    stream.write_all(&[1])?;
+
+    let ss = stream.try_clone()?;
+    let th1 = thread::spawn(move || {
+        if let Err(e) = std::panic::catch_unwind(|| {
+            screen_stream(ss);
+        }) {
+            eprintln!("{:?}", e);
+        }
+    });
+
+    let th2 = thread::spawn(move || {
+        if let Err(e) = std::panic::catch_unwind(|| {
+            event(stream);
+        }) {
+            eprintln!("{:?}", e);
+        }
+    });
+
+    th1.join().unwrap();
+    th2.join().unwrap();
+
+    Ok(())
 }
 
 /**
@@ -94,6 +126,7 @@ fn event(mut stream: TcpStream) {
     let mut move_cmd = [0u8; 4];
     let mut enigo = Enigo::new();
     while let Ok(_) = stream.read_exact(&mut cmd) {
+        println!("cmd: {:?}", cmd);
         match cmd[0] {
             common::KEY_UP => {
                 stream.read_exact(&mut cmd).unwrap();
@@ -102,6 +135,7 @@ fn event(mut stream: TcpStream) {
                 }
             }
             common::KEY_DOWN => {
+                println!("Keydown");
                 stream.read_exact(&mut cmd).unwrap();
                 if let Some(key) = key_mouse::key_to_enigo(cmd[0]) {
                     enigo.key_down(key);
@@ -187,14 +221,12 @@ fn screen_stream(mut stream: TcpStream) {
     e.write_all(&yuv).unwrap();
     buf = e.reset(Vec::new()).unwrap();
     (last, yuv) = (yuv, last);
-
+    // Send
     let clen = buf.len();
     encode(clen, &mut header);
-    println!("header sent: {:?}", header);
     if let Err(_) = stream.write_all(&header) {
         return;
     }
-    println!("buf first: {:?} buf last: {:?} buf len: {}", buf.first(), buf.last(), buf.len());
     if let Err(_) = stream.write_all(&buf) {
         return;
     }
@@ -221,7 +253,6 @@ fn screen_stream(mut stream: TcpStream) {
         // Send
         let clen = buf.len();
         encode(clen, &mut header);
-        println!("header sent: {:?}", header);
         if let Err(_) = stream.write_all(&header) {
             return;
         }

@@ -86,12 +86,12 @@ fn draw(host: String, pwd: String) {
         (pk >> (2 * 8)) as u8,
         (pk >> (1 * 8)) as u8,
         pk as u8,
+        b'\n'
     ];
     match conn.write_all(&data) {
         Ok(_) => (),
         Err(e) => println!("Error sending password: {}", e)
     };
-    conn.write_all(b"\n").unwrap();
     let mut suc = [0u8];
     conn.read_exact(&mut suc).expect("Could not get suc bytes");
     if suc[0] != 1 {
@@ -132,14 +132,17 @@ fn draw(host: String, pwd: String) {
         match ev {
             Event::Enter => {
                 // Enter window
+                println!("Hooked");
                 hooked = true;
             }
             Event::Leave => {
                 // Leave window
+                println!("Unhooked");
                 hooked = false;
             }
             Event::KeyDown if hooked => {
                 // Key down
+                println!("Key down");
                 let key = app::event_key().bits() as u8;
                 cmd_buf[0] = common::KEY_DOWN;
                 cmd_buf[1] = key;
@@ -275,8 +278,7 @@ fn draw(host: String, pwd: String) {
             println!("error {}", e);
             return;
         }
-        println!("buf first: {:?} buf last: {:?} buf len: {}", buf.first(), buf.last(), buf.len());
-        // println!("buf: {:?}", buf);
+        // println!("buf first: {:?} buf last: {:?} buf len: {}", buf.first(), buf.last(), buf.len());
         unsafe {
             yuv.set_len(0);
         }
@@ -294,7 +296,6 @@ fn draw(host: String, pwd: String) {
             if let Err(_) = conn.read_exact(&mut header) {
                 return;
             }
-            println!("header received: {:?}", header);
             let recv_len = depack(&header);
             _length_sum += recv_len;
             
@@ -308,7 +309,7 @@ fn draw(host: String, pwd: String) {
             if let Err(_) = conn.read_exact(&mut buf) {
                 return;
             }
-            println!("buf first: {:?} buf last: {:?} buf len: {}", buf.first(), buf.last(), buf.len());
+            // println!("buf first: {:?} buf last: {:?} buf len: {}", buf.first(), buf.last(), buf.len());
             unsafe {
                 yuv.set_len(0);
             }

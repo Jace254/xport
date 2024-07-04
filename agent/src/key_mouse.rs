@@ -1,5 +1,3 @@
-
-
 pub fn mouse_to_enigo(key: u8) -> Option<enigo::MouseButton> {
     match key {
         233 => Some(enigo::MouseButton::Left),

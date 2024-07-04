@@ -1,4 +1,4 @@
-// #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 mod key_mouse;
 mod screen;
 mod agent;
@@ -11,12 +11,12 @@ fn main() {
         pwd = args[1].clone();
     }
 
-    // defalut port
-    let mut port = 8080;
+    // defalut host
+    let mut host = String::from("127.0.0.1:8080");
     if args.len() >= 3 {
-        port = args[2].parse::<u16>().unwrap();
+        host = args[2].clone();
     }
 
     // run forever
-    agent::run(port, pwd);
+    agent::run(host, pwd);
 }
