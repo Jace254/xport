@@ -9,7 +9,6 @@ use std::collections::hash_map::DefaultHasher;
 use std::hash::Hasher;
 use std::io::Read;
 use std::io::Write;
-use std::net::TcpListener;
 use std::net::TcpStream;
 use std::sync::mpsc::channel;
 use rayon::prelude::*;
@@ -28,36 +27,14 @@ pub fn run(port: u16, pwd: String) {
         (pk >> (1 * 8)) as u8,
         pk as u8,
     ];
-    let (tx6, rx) = channel::<TcpStream>();
+    let (tx4, rx) = channel::<TcpStream>();
     if cfg!(target_os = "windows") {
-        let tx4 = tx6.clone();
         std::thread::spawn(move || {
-            let listener_ipv4 = TcpListener::bind(format!("0.0.0.0:{}", port)).unwrap();
-            for sr in listener_ipv4.incoming() {
-                match sr {
-                    Ok(stream) => {
-                        tx4.send(stream).unwrap();
-                    }
-                    Err(e) => {
-                        println!("error {}", e);
-                    }
-                }
-            }
+            let mut stream = TcpStream::connect(format!("127.0.0.1:{}", port)).unwrap();
+            stream.write_all(b"agent\n").unwrap();
+            tx4.send(stream).unwrap();
         });
     }
-    std::thread::spawn(move || {
-        let listener_ipv6 = TcpListener::bind(format!("[::0]:{}", port)).unwrap();
-        for sr in listener_ipv6.incoming() {
-            match sr {
-                Ok(stream) => {
-                    tx6.send(stream).unwrap();
-                }
-                Err(e) => {
-                    println!("error {}", e);
-                }
-            }
-        }
-    });
 
     loop {
         match rx.recv() {
@@ -66,10 +43,13 @@ pub fn run(port: u16, pwd: String) {
                 let mut check = [0u8; 8];
                 match stream.read_exact(&mut check) {
                     Ok(_) => {
+                        println!("check {:?}", check);
                         if suc != check {
                             println!("Password error");
                             let _ = stream.write_all(&[2]);
                             continue;
+                        } else {
+                            println!("Succesfully accessed");
                         }
                     }
                     Err(_) => {
@@ -166,6 +146,7 @@ fn encode(data_len: usize, res: &mut [u8]) {
     res[0] = (data_len >> 16) as u8;
     res[1] = (data_len >> 8) as u8;
     res[2] = data_len as u8;
+    // res[3] = 10 as u8;
 }
 
 /*
@@ -209,9 +190,11 @@ fn screen_stream(mut stream: TcpStream) {
 
     let clen = buf.len();
     encode(clen, &mut header);
+    println!("header sent: {:?}", header);
     if let Err(_) = stream.write_all(&header) {
         return;
     }
+    println!("buf first: {:?} buf last: {:?} buf len: {}", buf.first(), buf.last(), buf.len());
     if let Err(_) = stream.write_all(&buf) {
         return;
     }
@@ -238,6 +221,7 @@ fn screen_stream(mut stream: TcpStream) {
         // Send
         let clen = buf.len();
         encode(clen, &mut header);
+        println!("header sent: {:?}", header);
         if let Err(_) = stream.write_all(&header) {
             return;
         }

@@ -1,0 +1,17 @@
+name: relay
+version: 0.1.0
+
+authors:
+  - Hypnos <47209391+Jace254@users.noreply.github.com>
+
+targets:
+  relay:
+    main: src/relay.cr
+
+dependencies:
+  kemal:
+    github: kemalcr/kemal
+
+crystal: '>= 1.12.2'
+
+license: MIT

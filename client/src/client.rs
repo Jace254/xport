@@ -14,6 +14,8 @@ use std::io::Write;
 use std::net::TcpStream;
 use std::sync::Arc;
 use std::sync::RwLock;
+use std::thread;
+use std::time::Duration;
 
 use fltk::app;
 use fltk::enums;
@@ -40,7 +42,7 @@ pub fn app_run() {
     );
     wind.set_color(Color::from_hex_str("#FFFFFF").expect("Could not set window Hex"));
     let mut host_ipt = Input::new(80, 20, 200, 25, "Host");
-    host_ipt.set_value("127.0.0.1:80");
+    host_ipt.set_value("127.0.0.1:8080");
     let mut pwd_ipt = SecretInput::new(80, 50, 200, 25, "Pass");
     pwd_ipt.set_value("joash123");
     let mut login_btn = Button::new(80, 80, 200, 30, "Login");
@@ -68,11 +70,14 @@ fn depack(buffer: &[u8]) -> usize {
 
 fn draw(host: String, pwd: String) {
     let mut conn = TcpStream::connect(host).unwrap();
+
+    conn.write_all(b"ui\n").unwrap();
+    thread::sleep(Duration::from_millis(500));
     // Authentication
     let mut hasher = DefaultHasher::new();
     hasher.write(pwd.as_bytes());
     let pk = hasher.finish();
-    conn.write_all(&[
+    let data = vec![
         (pk >> (7 * 8)) as u8,
         (pk >> (6 * 8)) as u8,
         (pk >> (5 * 8)) as u8,
@@ -81,10 +86,14 @@ fn draw(host: String, pwd: String) {
         (pk >> (2 * 8)) as u8,
         (pk >> (1 * 8)) as u8,
         pk as u8,
-    ])
-    .unwrap();
+    ];
+    match conn.write_all(&data) {
+        Ok(_) => (),
+        Err(e) => println!("Error sending password: {}", e)
+    };
+    conn.write_all(b"\n").unwrap();
     let mut suc = [0u8];
-    conn.read_exact(&mut suc).unwrap();
+    conn.read_exact(&mut suc).expect("Could not get suc bytes");
     if suc[0] != 1 {
         if suc[0] == 2 {
             panic!("Password error!");
@@ -92,7 +101,6 @@ fn draw(host: String, pwd: String) {
             panic!("Some error!");
         }
     }
-
     // Start drawing wind2 window
     let (sw, sh) = app::screen_size();
     let mut wind_screen = Window::default()
@@ -256,6 +264,7 @@ fn draw(host: String, pwd: String) {
         if let Err(_) = conn.read_exact(&mut header) {
             return;
         }
+        println!("header received: {:?}", header);
         let recv_len = depack(&header);
         _length_sum += recv_len;
         
@@ -266,6 +275,8 @@ fn draw(host: String, pwd: String) {
             println!("error {}", e);
             return;
         }
+        println!("buf first: {:?} buf last: {:?} buf len: {}", buf.first(), buf.last(), buf.len());
+        // println!("buf: {:?}", buf);
         unsafe {
             yuv.set_len(0);
         }
@@ -283,6 +294,7 @@ fn draw(host: String, pwd: String) {
             if let Err(_) = conn.read_exact(&mut header) {
                 return;
             }
+            println!("header received: {:?}", header);
             let recv_len = depack(&header);
             _length_sum += recv_len;
             
@@ -296,6 +308,7 @@ fn draw(host: String, pwd: String) {
             if let Err(_) = conn.read_exact(&mut buf) {
                 return;
             }
+            println!("buf first: {:?} buf last: {:?} buf len: {}", buf.first(), buf.last(), buf.len());
             unsafe {
                 yuv.set_len(0);
             }
