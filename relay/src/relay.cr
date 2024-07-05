@@ -1,20 +1,17 @@
 require "socket"
 require "json"
 require "log"
+require "gc"
 
+# TODO: Create separate functions for agents and clients
 Log.setup :debug
 
-class Client
-  property type : String
-  property socket : TCPSocket
-
-  def initialize(type : String, socket : TCPSocket)
-    @type = type
-    @socket = socket
-  end
-end
+record Client, type : String, socket : TCPSocket
 
 class SafeClientList
+  @clients : Array(Client)
+  @mutex : Mutex
+
   def initialize
     @clients = [] of Client
     @mutex = Mutex.new
@@ -41,36 +38,35 @@ class SafeClientList
   end
 end
 
-server = TCPServer.new("0.0.0.0", 8080)
-Log.info { "Server listening on port 8080" }
 
-agents = SafeClientList.new
-clients = SafeClientList.new
 
 def handle_client(client : Client, agents : SafeClientList, clients : SafeClientList)
   Log.info { "Init handler for #{client.type}" }
+  message = ""
+  clients_to_remove = [] of Client
+
   loop do
     begin
-      message = client.socket.gets(chomp: false)
-      break if message.nil? # Client disconnected
+      message = client.socket.gets(chomp: false) || break
       
       if client.type == "agent"
+
         if clients.empty?
           Log.info { "No clients connected. Closing agent connection." }
           break
-        end
-        # Log.debug { "Sending message to clients (#{clients.size})" }
-        clients_to_remove = [] of Client
-        clients.each do |c| 
-          begin
-            c.socket.puts message
-          rescue ex : IO::Error
-            Log.error(exception: ex) { "Error sending to client" }
-            if ex.message.try &.includes?("An existing connection was forcibly closed by the remote host")
-              clients_to_remove << c
+        elsif
+          # Log.debug { "Sending message to clients (#{clients.size})" }
+          clients.each do |c| 
+            begin
+              c.socket.puts(message)
+            rescue ex : IO::Error
+              Log.error(exception: ex) { "Error sending to client" }
+              if ex.message.try &.includes?("An existing connection was forcibly closed by the remote host")
+                clients_to_remove << c
+              end
+            rescue ex
+              Log.error(exception: ex) { "Unexpected error sending to client" }
             end
-          rescue ex
-            Log.error(exception: ex) { "Unexpected error sending to client" }
           end
         end
         
@@ -79,12 +75,10 @@ def handle_client(client : Client, agents : SafeClientList, clients : SafeClient
           clients.delete(c)
           Log.info { "Client disconnected due to connection error" }
         end
+        clients_to_remove.clear
         
         # If all clients disconnected, close the agent connection
-        if clients.empty?
-          Log.info { "All clients disconnected. Closing agent connection." }
-          break
-        end
+        break if clients.empty?
       elsif client.type == "ui"
         Log.debug { "Sending message to agents (#{agents.size})" }
         agents.each do |a| 
@@ -95,13 +89,15 @@ def handle_client(client : Client, agents : SafeClientList, clients : SafeClient
           end
         end
       end
+      
     rescue ex : IO::Error
-      Log.error(exception: ex) { "Connection error for #{client.type}" }
+      Log.error(exception: ex) { "Connection error for #{client.type}: #{ex.message}" }
       break
     rescue ex
-      Log.error(exception: ex) { "Unexpected error for #{client.type}" }
+      Log.error(exception: ex) { "Unexpected error for #{client.type}: #{ex.message}" }
       break
     end
+    message = nil
   end
 rescue ex
   Log.error(exception: ex) { "Exception in handle_client for #{client.type}" }
@@ -115,24 +111,21 @@ ensure
   Log.info { "#{client.type.capitalize} disconnected" }
 end
 
+server = TCPServer.new("0.0.0.0", 443)
+Log.info { "Server listening on port 443" }
+
+agents  = SafeClientList.new
+clients = SafeClientList.new
+
 while socket = server.accept?
-  client_type = socket.gets
-  if client_type
-    client_type = client_type.chomp
-    if client_type == "agent" || client_type == "ui"
-      client = Client.new(client_type, socket)
-      if client_type == "agent"
-        agents.add(client)
-      else
-        clients.add(client)
-      end
-      Log.info { "#{client_type.capitalize} client connected" }
-      spawn handle_client(client, agents, clients)
-    else
-      socket.puts "Invalid client type"
-      socket.close
-    end
+  client_type = socket.gets(chomp: true)
+  if client_type && {"agent", "ui"}.includes?(client_type)
+    client = Client.new(client_type, socket)
+    (client_type == "agent" ? agents : clients).add(client)
+    Log.info { "#{client_type.capitalize} client connected" }
+    spawn handle_client(client, agents, clients)
   else
+    socket.puts("Invalid client type")
     socket.close
   end
 end

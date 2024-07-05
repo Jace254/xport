@@ -1,0 +1,12 @@
+FROM crystallang/crystal:latest
+
+WORKDIR /app
+
+COPY shard.yml shard.lock ./
+RUN shards install --production
+
+COPY . .
+RUN crystal build --release --no-debug src/relay.cr
+
+EXPOSE 443
+CMD ["./app"]

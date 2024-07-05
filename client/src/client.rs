@@ -70,6 +70,7 @@ fn depack(buffer: &[u8]) -> usize {
 
 fn draw(host: String, pwd: String) {
     let mut conn = TcpStream::connect(host).unwrap();
+    // let mut conn = conn1.try_clone().unwrap();
 
     conn.write_all(b"ui\n").unwrap();
     thread::sleep(Duration::from_millis(500));
@@ -350,4 +351,6 @@ fn draw(host: String, pwd: String) {
             _ => {}
         }
     }
+    // let mut remaining_bytes = Vec::<u8>::new();
+    // let _ = conn1.read_to_end(&mut remaining_bytes);
 }
