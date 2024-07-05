@@ -59,7 +59,7 @@ def handle_client(client : Client, agents : SafeClientList, clients : SafeClient
           Log.info { "No clients connected. Closing agent connection." }
           break
         end
-        Log.debug { "Sending message to clients (#{clients.size})" }
+        # Log.debug { "Sending message to clients (#{clients.size})" }
         clients_to_remove = [] of Client
         clients.each do |c| 
           begin

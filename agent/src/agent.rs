@@ -127,6 +127,9 @@ fn handle_connection(rx: Receiver<TcpStream>, suc: &[u8; 8], cap: Arc<Mutex<Cap>
  * Event handling
  */
 fn event(mut stream: TcpStream, enigo: Arc<Mutex<Enigo>>) {
+    let mut extra = [0u8];
+    stream.read_exact(&mut extra).unwrap();
+    println!("extra: {:?}", extra);
     let mut cmd = [0u8];
     let mut move_cmd = [0u8; 4];
     let mut enigo = enigo.lock().unwrap();

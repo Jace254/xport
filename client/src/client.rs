@@ -77,7 +77,7 @@ fn draw(host: String, pwd: String) {
     let mut hasher = DefaultHasher::new();
     hasher.write(pwd.as_bytes());
     let pk = hasher.finish();
-    let data = vec![
+    match conn.write_all(&[
         (pk >> (7 * 8)) as u8,
         (pk >> (6 * 8)) as u8,
         (pk >> (5 * 8)) as u8,
@@ -87,8 +87,7 @@ fn draw(host: String, pwd: String) {
         (pk >> (1 * 8)) as u8,
         pk as u8,
         b'\n'
-    ];
-    match conn.write_all(&data) {
+    ]) {
         Ok(_) => (),
         Err(e) => println!("Error sending password: {}", e)
     };
@@ -105,7 +104,7 @@ fn draw(host: String, pwd: String) {
     let (sw, sh) = app::screen_size();
     let mut wind_screen = Window::default()
         .with_size((sw / 2.0) as i32, (sh / 2.0) as i32)
-        .with_label("Xport");
+        .with_label("Xport - Remote Desktop");
     let mut frame = Frame::default().size_of(&wind_screen);
     wind_screen.make_resizable(true);
     wind_screen.end();
@@ -220,6 +219,7 @@ fn draw(host: String, pwd: String) {
                 }
             }
             _ => {
+                println!("Event {} called without hook", ev);
                 if hooked {
                     println!("{}", ev);
                 }
