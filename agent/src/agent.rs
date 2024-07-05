@@ -36,7 +36,6 @@ pub fn run(host: String, pwd: String) {
     ];
 
     let cap = Arc::new(Mutex::new(Cap::new()));
-    let enigo = Arc::new(Mutex::new(Enigo::new()));
 
 
     loop {
@@ -48,7 +47,7 @@ pub fn run(host: String, pwd: String) {
             connect_and_send(host_clone, tx_clone)
         });
 
-        match handle_connection(rx, &suc, Arc::clone(&cap), Arc::clone(&enigo)) {
+        match handle_connection(rx, &suc, Arc::clone(&cap)) {
             Ok(()) => {
                 println!("Break !");
                 // Add a small delay before attempting to reconnect
@@ -85,7 +84,7 @@ fn connect_and_send(host: String, tx: Sender<TcpStream>) {
     }
 }
 
-fn handle_connection(rx: Receiver<TcpStream>, suc: &[u8; 8], cap: Arc<Mutex<Cap>>, enigo: Arc<Mutex<Enigo>>) -> Result<(), Box<dyn std::error::Error>> {
+fn handle_connection(rx: Receiver<TcpStream>, suc: &[u8; 8], cap: Arc<Mutex<Cap>>) -> Result<(), Box<dyn std::error::Error>> {
     let mut stream = rx.recv()?;
 
     // Check connection validity
@@ -111,7 +110,7 @@ fn handle_connection(rx: Receiver<TcpStream>, suc: &[u8; 8], cap: Arc<Mutex<Cap>
 
     let th2 = thread::spawn(move || {
         if let Err(e) = std::panic::catch_unwind(|| {
-            event(stream, enigo);
+            event(stream);
         }) {
             eprintln!("{:?}", e);
         }
@@ -126,13 +125,13 @@ fn handle_connection(rx: Receiver<TcpStream>, suc: &[u8; 8], cap: Arc<Mutex<Cap>
 /**
  * Event handling
  */
-fn event(mut stream: TcpStream, enigo: Arc<Mutex<Enigo>>) {
+fn event(mut stream: TcpStream) {
     let mut extra = [0u8];
     stream.read_exact(&mut extra).unwrap();
     println!("extra: {:?}", extra);
     let mut cmd = [0u8];
     let mut move_cmd = [0u8; 4];
-    let mut enigo = enigo.lock().unwrap();
+    let mut enigo = Enigo::new();
     while let Ok(_) = stream.read_exact(&mut cmd) {
         println!("cmd: {:?}", cmd);
         match cmd[0] {
