@@ -13,6 +13,9 @@ pub struct Cap {
     capturer: Option<Capturer>,
     sleep: Duration,
 }
+
+unsafe impl Send for Cap {}
+
 impl Cap {
     pub fn new() -> Cap {
         let display = Display::primary().unwrap();

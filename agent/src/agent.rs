@@ -15,6 +15,7 @@ use std::sync::mpsc::{
     Sender, 
     Receiver
 };
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use rayon::prelude::*;
 use std::thread;
@@ -34,6 +35,10 @@ pub fn run(host: String, pwd: String) {
         pk as u8,
     ];
 
+    let cap = Arc::new(Mutex::new(Cap::new()));
+    let enigo = Arc::new(Mutex::new(Enigo::new()));
+
+
     loop {
         let (tx4, rx) = channel::<TcpStream>();
         let tx_clone = tx4.clone();
@@ -43,7 +48,7 @@ pub fn run(host: String, pwd: String) {
             connect_and_send(host_clone, tx_clone)
         });
 
-        match handle_connection(rx, &suc) {
+        match handle_connection(rx, &suc, Arc::clone(&cap), Arc::clone(&enigo)) {
             Ok(()) => {
                 println!("Break !");
                 // Add a small delay before attempting to reconnect
@@ -80,7 +85,7 @@ fn connect_and_send(host: String, tx: Sender<TcpStream>) {
     }
 }
 
-fn handle_connection(rx: Receiver<TcpStream>, suc: &[u8; 8]) -> Result<(), Box<dyn std::error::Error>> {
+fn handle_connection(rx: Receiver<TcpStream>, suc: &[u8; 8], cap: Arc<Mutex<Cap>>, enigo: Arc<Mutex<Enigo>>) -> Result<(), Box<dyn std::error::Error>> {
     let mut stream = rx.recv()?;
 
     // Check connection validity
@@ -98,7 +103,7 @@ fn handle_connection(rx: Receiver<TcpStream>, suc: &[u8; 8]) -> Result<(), Box<d
     let ss = stream.try_clone()?;
     let th1 = thread::spawn(move || {
         if let Err(e) = std::panic::catch_unwind(|| {
-            screen_stream(ss);
+            screen_stream(ss, cap);
         }) {
             eprintln!("{:?}", e);
         }
@@ -106,7 +111,7 @@ fn handle_connection(rx: Receiver<TcpStream>, suc: &[u8; 8]) -> Result<(), Box<d
 
     let th2 = thread::spawn(move || {
         if let Err(e) = std::panic::catch_unwind(|| {
-            event(stream);
+            event(stream, enigo);
         }) {
             eprintln!("{:?}", e);
         }
@@ -121,10 +126,10 @@ fn handle_connection(rx: Receiver<TcpStream>, suc: &[u8; 8]) -> Result<(), Box<d
 /**
  * Event handling
  */
-fn event(mut stream: TcpStream) {
+fn event(mut stream: TcpStream, enigo: Arc<Mutex<Enigo>>) {
     let mut cmd = [0u8];
     let mut move_cmd = [0u8; 4];
-    let mut enigo = Enigo::new();
+    let mut enigo = enigo.lock().unwrap();
     while let Ok(_) = stream.read_exact(&mut cmd) {
         println!("cmd: {:?}", cmd);
         match cmd[0] {
@@ -180,7 +185,6 @@ fn encode(data_len: usize, res: &mut [u8]) {
     res[0] = (data_len >> 16) as u8;
     res[1] = (data_len >> 8) as u8;
     res[2] = data_len as u8;
-    // res[3] = 10 as u8;
 }
 
 /*
@@ -195,8 +199,8 @@ Image byte order
 length: data length
 data: data
 */
-fn screen_stream(mut stream: TcpStream) {
-    let mut cap = Cap::new();
+fn screen_stream(mut stream: TcpStream, cap: Arc<Mutex<Cap>>) {
+    let mut cap = cap.lock().unwrap();
 
     let (w, h) = cap.wh();
 
