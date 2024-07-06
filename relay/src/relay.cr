@@ -109,6 +109,7 @@ ensure
     clients.delete(client)
   end
   client.socket.close rescue nil
+  GC.collect
   Log.info { "#{client.type.capitalize} disconnected" }
 end
 
