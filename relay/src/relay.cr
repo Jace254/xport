@@ -1,6 +1,7 @@
 require "socket"
 require "json"
 require "log"
+require "gc"
 
 # TODO: Create separate functions for agents and clients
 Log.setup :debug
@@ -39,8 +40,9 @@ end
 
 def handle_client(client : Client, agents : SafeClientList, clients : SafeClientList)
   Log.info { "Init handler for #{client.type}" }
-  # message = ""
+  message = ""
   clients_to_remove = [] of Client
+  count = 0
 
   loop do
     begin
@@ -92,7 +94,11 @@ def handle_client(client : Client, agents : SafeClientList, clients : SafeClient
       Log.error(exception: ex) { "Unexpected error for #{client.type}: #{ex.message}" }
       break
     end
-    message = nil
+    # message = nil
+    count += 1
+    if count % 24 == 0 
+      GC.collect
+    end
   end
 rescue ex
   Log.error(exception: ex) { "Exception in handle_client for #{client.type}" }
