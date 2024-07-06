@@ -295,14 +295,11 @@ impl Capturer {
 
     fn draw_cursor(&self, frame: &mut [u8]) {
         let (cursor_x, cursor_y) = self.cursor_info.position;
-        let frame_width = self.width;
         let bytes_per_pixel = 4; // Assuming BGRA format
         let cursor_width = self.cursor_info.shape_info.Width as i32;
         let cursor_height = self.cursor_info.shape_info.Height as i32;
         let cursor_pitch = self.cursor_info.shape_info.Pitch as usize;
         let cursor_type = self.cursor_info.shape_info.Type;
-
-        println!("cursor_pitch: {}\ncursor_type: {}\ncursor_width: {}\ncursor_height: {}\ncursor_position: {:?}\nframe_size(w/h): {:?}",cursor_pitch, cursor_type, cursor_width, cursor_height, (cursor_x, cursor_y), (frame_width,self.height));
     
         let (hot_x, hot_y) = (
             self.cursor_info.shape_info.HotSpot.x as i32,
@@ -314,8 +311,8 @@ impl Capturer {
                 let frame_x = cursor_x + x - hot_x;
                 let frame_y = cursor_y + y - hot_y;
     
-                if frame_x >= 0 && frame_y >= 0 && frame_x < frame_width as i32 && frame_y < self.height as i32 {
-                    let frame_index = (frame_y as usize * frame_width + frame_x as usize) * bytes_per_pixel;
+                if frame_x >= 0 && frame_y >= 0 && frame_x < self.width as i32 && frame_y < self.height as i32 {
+                    let frame_index = (frame_y as usize * self.width + frame_x as usize) * bytes_per_pixel;
                     if frame_index + 3 < frame.len() {
                         let cursor_index = y as usize * cursor_pitch + x as usize * 4; // 4 bytes per pixel for color cursors
                         
