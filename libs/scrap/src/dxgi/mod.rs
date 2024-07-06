@@ -300,7 +300,10 @@ impl Capturer {
         let cursor_height = self.cursor_info.shape_info.Height as i32;
         let cursor_pitch = self.cursor_info.shape_info.Pitch as usize;
         let cursor_type = self.cursor_info.shape_info.Type;
-    
+        let frame_width = self.width as i32;
+        let frame_height = self.height as i32;
+        let shape_len = self.cursor_info.shape.len();
+        
         let (hot_x, hot_y) = (
             self.cursor_info.shape_info.HotSpot.x as i32,
             self.cursor_info.shape_info.HotSpot.y as i32
@@ -311,29 +314,31 @@ impl Capturer {
                 let frame_x = cursor_x + x - hot_x;
                 let frame_y = cursor_y + y - hot_y;
     
-                if frame_x >= 0 && frame_y >= 0 && frame_x < self.width as i32 && frame_y < self.height as i32 {
+                if frame_x >= 0 && frame_y >= 0 && frame_x < frame_width && frame_y < frame_height {
                     let frame_index = (frame_y as usize * self.width + frame_x as usize) * bytes_per_pixel;
                     if frame_index + 3 < frame.len() {
                         let cursor_index = y as usize * cursor_pitch + x as usize * 4; // 4 bytes per pixel for color cursors
-                        
-                        match DXGI_OUTDUPL_POINTER_SHAPE_TYPE(cursor_type) {
-                            DXGI_OUTDUPL_POINTER_SHAPE_TYPE_COLOR => {
-                                self.draw_color_cursor(frame, frame_index, cursor_index);
-                            },
-                            DXGI_OUTDUPL_POINTER_SHAPE_TYPE_MONOCHROME => {
-                                self.draw_monochrome_cursor(frame, frame_index, cursor_index, x);
-                            },
-                            DXGI_OUTDUPL_POINTER_SHAPE_TYPE_MASKED_COLOR => {
-                                self.draw_masked_color_cursor(frame, frame_index, cursor_index);
-                            },
-                            _ => {} // Unknown cursor type
+    
+                        if cursor_index + 3 < shape_len {
+                            match DXGI_OUTDUPL_POINTER_SHAPE_TYPE(cursor_type) {
+                                DXGI_OUTDUPL_POINTER_SHAPE_TYPE_COLOR => {
+                                    self.draw_color_cursor(frame, frame_index, cursor_index);
+                                },
+                                DXGI_OUTDUPL_POINTER_SHAPE_TYPE_MONOCHROME => {
+                                    self.draw_monochrome_cursor(frame, frame_index, cursor_index, x);
+                                },
+                                DXGI_OUTDUPL_POINTER_SHAPE_TYPE_MASKED_COLOR => {
+                                    self.draw_masked_color_cursor(frame, frame_index, cursor_index);
+                                },
+                                _ => {} // Unknown cursor type
+                            }
                         }
                     }
                 }
             }
         }
     }
-
+    
     fn draw_color_cursor(&self, frame: &mut [u8], frame_index: usize, cursor_index: usize) {
         if cursor_index + 3 < self.cursor_info.shape.len() {
             let alpha = self.cursor_info.shape[cursor_index + 3] as u16;
@@ -351,7 +356,7 @@ impl Capturer {
             }
         }
     }
-
+    
     fn draw_monochrome_cursor(&self, frame: &mut [u8], frame_index: usize, cursor_index: usize, x: i32) {
         let byte_index = cursor_index / 8;
         let bit_index = 7 - (x % 8) as usize;
@@ -393,7 +398,7 @@ impl Capturer {
                 }
             }
         }
-    }
+    }    
 }
 
 impl Drop for Capturer {
