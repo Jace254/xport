@@ -15,6 +15,6 @@ panic = "abort"
 common = {path = "../common"}
 
 flate2 = "1.0"
-scrap = "0.5"
+scrap = {path = "../libs/scrap" }
 enigo = "0.1.3"
 rayon = "1.5"
