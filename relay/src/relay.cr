@@ -1,7 +1,6 @@
 require "socket"
 require "json"
 require "log"
-require "gc"
 
 # TODO: Create separate functions for agents and clients
 Log.setup :debug
@@ -38,31 +37,9 @@ class SafeClientList
   end
 end
 
-# class Message 
-#   @message : String
-#   @mutex : Mutex
-
-#   def initialize
-#     @message = ""
-#     @mutex = Mutex.new
-#   end
-
-#   def set(message : String)
-#     @mutex.synchronize { @message = message }
-#   end
-
-#   def get
-#     @mutex.synchronize { @message }
-#   end
-
-#   def finalize
-#     @mutex.synchronize { @message = "" }
-#   end
-# end
-
 def handle_client(client : Client, agents : SafeClientList, clients : SafeClientList)
   Log.info { "Init handler for #{client.type}" }
-  message = ""
+  # message = ""
   clients_to_remove = [] of Client
 
   loop do
@@ -73,19 +50,19 @@ def handle_client(client : Client, agents : SafeClientList, clients : SafeClient
         if clients.empty?
           Log.info { "No clients connected. Closing agent connection." }
           break
-        elsif
-          # Log.debug { "Sending message to clients (#{clients.size})" }
-          clients.each do |c|
-            begin
-              c.socket.puts(message)
-            rescue ex : IO::Error
-              Log.error(exception: ex) { "Error sending to client" }
-              if ex.message.try &.includes?("An existing connection was forcibly closed by the remote host")
-                clients_to_remove << c
-              end
-            rescue ex
-              Log.error(exception: ex) { "Unexpected error sending to client" }
+        end
+
+        # Send agent messages to ui
+        clients.each do |c|
+          begin
+            c.socket.puts(message)
+          rescue ex : IO::Error
+            Log.error(exception: ex) { "Error sending to client" }
+            if ex.message.try &.includes?("An existing connection was forcibly closed by the remote host")
+              clients_to_remove << c
             end
+          rescue ex
+            Log.error(exception: ex) { "Unexpected error sending to client" }
           end
         end
         
@@ -99,7 +76,7 @@ def handle_client(client : Client, agents : SafeClientList, clients : SafeClient
         # If all clients disconnected, close the agent connection
         break if clients.empty?
       elsif client.type == "ui"
-        Log.debug { "Sending message to agents (#{agents.size})" }
+        # Send Ui messages to agent
         agents.each do |a| 
           begin
             a.socket.puts message.chomp
@@ -108,8 +85,6 @@ def handle_client(client : Client, agents : SafeClientList, clients : SafeClient
           end
         end
       end
-      message = nil
-      client.socket.flush
     rescue ex : IO::Error
       Log.error(exception: ex) { "Connection error for #{client.type}: #{ex.message}" }
       break
@@ -117,6 +92,7 @@ def handle_client(client : Client, agents : SafeClientList, clients : SafeClient
       Log.error(exception: ex) { "Unexpected error for #{client.type}: #{ex.message}" }
       break
     end
+    message = nil
   end
 rescue ex
   Log.error(exception: ex) { "Exception in handle_client for #{client.type}" }
@@ -137,7 +113,8 @@ agents  = SafeClientList.new
 clients = SafeClientList.new
 
 while socket = server.accept?
-  client_type = socket.gets(chomp: true) # "agent\njoash"
+  client_type = socket.gets(chomp: true)
+  # Create a client with type(agent/ui) and socket(TcpSocket)
   if client_type && {"agent", "ui"}.includes?(client_type) 
     client = Client.new(client_type, socket)
     (client_type == "agent" ? agents : clients).add(client)

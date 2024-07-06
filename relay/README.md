@@ -4,7 +4,8 @@ The project relay server
 
 ## Usage
 
-crystal build ./src/relay.cr
+mkdir release
+crystal build --release -o ./release/relay.exe .\src\relay.cr
 
 ## Development
 
