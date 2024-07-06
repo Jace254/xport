@@ -25,7 +25,7 @@ impl Cap {
             w,
             h,
             capturer: Some(capturer),
-            sleep: Duration::new(1, 0) / 60,
+            sleep: Duration::new(1, 0) / 24,
         }
     }
     fn reload(&mut self) {
