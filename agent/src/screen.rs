@@ -19,6 +19,9 @@ unsafe impl Send for Cap {}
 impl Cap {
     pub fn new() -> Cap {
         let display = Display::primary().unwrap();
+        #[cfg(windows)]
+        let capturer = Capturer::new(display,true ).unwrap();
+        #[cfg(not(windows))]
         let capturer = Capturer::new(display).unwrap();
         let (w, h) = (capturer.width(), capturer.height());
         Cap {
@@ -38,6 +41,12 @@ impl Cap {
             }
         };
 
+        #[cfg(windows)]
+        let capturer = match Capturer::new(display, true) {
+            Ok(capturer) => capturer,
+            Err(_) => return,
+        };
+        #[cfg(not(windows))]
         let capturer = match Capturer::new(display) {
             Ok(capturer) => capturer,
             Err(_) => return,
