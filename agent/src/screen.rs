@@ -17,6 +17,11 @@ pub struct Cap {
 unsafe impl Send for Cap {}
 
 impl Cap {
+    /// The function `new` creates a new `Cap` instance with a display and capturer based on the platform.
+    /// 
+    /// Returns:
+    /// 
+    /// A `Cap` struct is being returned from the `new` function.
     pub fn new() -> Cap {
         let display = Display::primary().unwrap();
         #[cfg(windows)]
@@ -53,6 +58,7 @@ impl Cap {
         };
         self.capturer = Some(capturer);
     }
+    /// The function `wh` in Rust returns a tuple containing the width and height of a struct instance.
     pub fn wh(&self) -> (usize, usize) {
         (self.w, self.h)
     }
