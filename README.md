@@ -4,4 +4,9 @@ You need [CMake](https://cmake.org/download/) to run this project
 
 ## Development
 
-run `cargo build --release` for both client and agent.
+Run:
+
+```bash
+cargo build --release --bin agent
+cargo build --release --bin client
+```
