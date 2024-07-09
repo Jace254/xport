@@ -1,24 +1,17 @@
 use crate::key_mouse;
 use crate::screen::Cap;
 use enigo::Enigo;
-use enigo::{KeyboardControllable, MouseControllable };
-use flate2::{
-    Compression,
-    write::DeflateEncoder
-};
+use enigo::{KeyboardControllable, MouseControllable};
+use flate2::{write::DeflateEncoder, Compression};
+use rayon::prelude::*;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::Hasher;
 use std::io::{Read, Write};
 use std::net::TcpStream;
-use std::sync::mpsc::{
-    channel,
-    Sender, 
-    Receiver
-};
+use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
-use rayon::prelude::*;
 use std::thread;
+use std::time::Duration;
 
 pub fn run(host: String, pwd: String) {
     let mut hasher = DefaultHasher::new();
@@ -37,15 +30,12 @@ pub fn run(host: String, pwd: String) {
 
     let cap = Arc::new(Mutex::new(Cap::new()));
 
-
     loop {
         let (tx4, rx) = channel::<TcpStream>();
         let tx_clone = tx4.clone();
         let host_clone = host.clone();
 
-        thread::spawn(move || {
-            connect_and_send(host_clone, tx_clone)
-        });
+        thread::spawn(move || connect_and_send(host_clone, tx_clone));
 
         match handle_connection(rx, &suc, Arc::clone(&cap)) {
             Ok(()) => {
@@ -60,11 +50,10 @@ pub fn run(host: String, pwd: String) {
             }
         }
     }
-
 }
 
 fn connect_and_send(host: String, tx: Sender<TcpStream>) {
-    loop  {
+    loop {
         let hc = host.clone();
 
         // create stream channel
@@ -76,15 +65,16 @@ fn connect_and_send(host: String, tx: Sender<TcpStream>) {
                     }
                 }
             }
-            Err(_) => {
-                thread::sleep(Duration::from_secs(1))
-            }
+            Err(_) => thread::sleep(Duration::from_secs(1)),
         }
-
     }
 }
 
-fn handle_connection(rx: Receiver<TcpStream>, suc: &[u8; 8], cap: Arc<Mutex<Cap>>) -> Result<(), Box<dyn std::error::Error>> {
+fn handle_connection(
+    rx: Receiver<TcpStream>,
+    suc: &[u8; 8],
+    cap: Arc<Mutex<Cap>>,
+) -> Result<(), Box<dyn std::error::Error>> {
     let mut stream = rx.recv()?;
 
     // Check connection validity
@@ -242,11 +232,11 @@ fn screen_stream(mut stream: TcpStream, cap: Arc<Mutex<Cap>>) {
             yuv.set_len(0);
         }
         common::convert::bgra_to_i420(w, h, bgra, &mut yuv);
-        if yuv[..w*h] == last[..w*h] {
+        if yuv[..w * h] == last[..w * h] {
             continue;
         }
         // Use parallel processing for delta calculation
-        last.par_iter_mut().zip(yuv.par_iter()).for_each(|(a, b)|{
+        last.par_iter_mut().zip(yuv.par_iter()).for_each(|(a, b)| {
             *a = *a ^ *b;
         });
         // Compress

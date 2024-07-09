@@ -18,14 +18,14 @@ unsafe impl Send for Cap {}
 
 impl Cap {
     /// The function `new` creates a new `Cap` instance with a display and capturer based on the platform.
-    /// 
+    ///
     /// Returns:
-    /// 
+    ///
     /// A `Cap` struct is being returned from the `new` function.
     pub fn new() -> Cap {
         let display = Display::primary().unwrap();
         #[cfg(windows)]
-        let capturer = Capturer::new(display,true ).unwrap();
+        let capturer = Capturer::new(display, true).unwrap();
         #[cfg(not(windows))]
         let capturer = Capturer::new(display).unwrap();
         let (w, h) = (capturer.width(), capturer.height());

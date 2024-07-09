@@ -87,10 +87,10 @@ fn draw(host: String, pwd: String) {
         (pk >> (2 * 8)) as u8,
         (pk >> (1 * 8)) as u8,
         pk as u8,
-        b'\n'
+        b'\n',
     ]) {
         Ok(_) => (),
-        Err(e) => println!("Error sending password: {}", e)
+        Err(e) => println!("Error sending password: {}", e),
     };
     let mut suc = [0u8];
     conn.read_exact(&mut suc).expect("Could not get suc bytes");
@@ -230,7 +230,7 @@ fn draw(host: String, pwd: String) {
     });
     let _tool_str = Arc::new(RwLock::new(String::new()));
     let _tool_strc = _tool_str.clone();
-    frame.draw(move |frame|{
+    frame.draw(move |frame| {
         if let Ok(_buf) = draw_work_buf.read() {
             unsafe {
                 if let Ok(mut image) =
@@ -241,7 +241,7 @@ fn draw(host: String, pwd: String) {
                     draw::set_color_rgb(0, 0, 0);
                     if let Ok(a) = _tool_strc.read() {
                         draw::draw_text(&a, frame.x() + frame.width() - 180, 20);
-                    }                    
+                    }
                 }
             }
         }
@@ -251,7 +251,7 @@ fn draw(host: String, pwd: String) {
 
     std::thread::spawn(move || {
         let u = (w * h) as usize;
-        let v = u + u/4;
+        let v = u + u / 4;
         let mut yuv = Vec::<u8>::new();
         let mut _yuv = Vec::<u8>::new();
         let mut buf = Vec::<u8>::new();
@@ -271,7 +271,7 @@ fn draw(host: String, pwd: String) {
         println!("header received: {:?}", header);
         let recv_len = depack(&header);
         _length_sum += recv_len;
-        
+
         if buf.capacity() < recv_len {
             buf.resize(recv_len, 0u8);
         }
@@ -279,16 +279,24 @@ fn draw(host: String, pwd: String) {
             println!("error {}", e);
             return;
         }
-        // println!("buf first: {:?} buf last: {:?} buf len: {}", buf.first(), buf.last(), buf.len());
+
         unsafe {
             yuv.set_len(0);
         }
+
         let mut d = DeflateDecoder::new(yuv);
         d.write_all(&buf).unwrap();
         yuv = d.reset(Vec::new()).unwrap();
 
         if let Ok(mut _buf) = work_buf.write() {
-            common::convert::i420_to_rgb(w as usize, h as usize, &yuv[..u], &yuv[u..v], &yuv[v..], &mut _buf);
+            common::convert::i420_to_rgb(
+                w as usize,
+                h as usize,
+                &yuv[..u],
+                &yuv[u..v],
+                &yuv[v..],
+                &mut _buf,
+            );
         }
         (_yuv, yuv) = (yuv, _yuv);
         tx.send(Msg::Draw);
@@ -299,7 +307,7 @@ fn draw(host: String, pwd: String) {
             }
             let recv_len = depack(&header);
             _length_sum += recv_len;
-            
+
             if buf.capacity() < recv_len {
                 buf.resize(recv_len, 0u8);
             } else {
@@ -310,10 +318,11 @@ fn draw(host: String, pwd: String) {
             if let Err(_) = conn.read_exact(&mut buf) {
                 return;
             }
-            // println!("buf first: {:?} buf last: {:?} buf len: {}", buf.first(), buf.last(), buf.len());
+
             unsafe {
                 yuv.set_len(0);
             }
+
             d.write_all(&buf).unwrap();
             yuv = d.reset(yuv).unwrap();
 
@@ -322,7 +331,14 @@ fn draw(host: String, pwd: String) {
             });
 
             if let Ok(mut _buf) = work_buf.write() {
-                common::convert::i420_to_rgb(w as usize, h as usize, &yuv[..u], &yuv[u..v], &yuv[v..], &mut _buf);
+                common::convert::i420_to_rgb(
+                    w as usize,
+                    h as usize,
+                    &yuv[..u],
+                    &yuv[u..v],
+                    &yuv[v..],
+                    &mut _buf,
+                );
             }
             (_yuv, yuv) = (yuv, _yuv);
             {
@@ -351,6 +367,4 @@ fn draw(host: String, pwd: String) {
             _ => {}
         }
     }
-    // let mut remaining_bytes = Vec::<u8>::new();
-    // let _ = conn1.read_to_end(&mut remaining_bytes);
 }

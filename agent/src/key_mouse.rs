@@ -1,13 +1,13 @@
 /// The function `mouse_to_enigo` maps a key code to a corresponding enigo mouse button.
-/// 
+///
 /// Arguments:
-/// 
+///
 /// * `key`: The `key` parameter in the `mouse_to_enigo` function is of type `u8`, which represents an
 /// unsigned 8-bit integer. This function takes a key value as input and returns an `Option` containing
 /// an `enigo::MouseButton` based on the key value.
-/// 
+///
 /// Returns:
-/// 
+///
 /// The function `mouse_to_enigo` returns an `Option` containing an `enigo::MouseButton` enum value. The
 /// function matches the input `key` with specific values and returns `Some(enigo::MouseButton::Left)`
 /// if `key` is 233, `Some(enigo::MouseButton::Right)` if `key` is 235, and `None` for any other value
@@ -20,18 +20,17 @@ pub fn mouse_to_enigo(key: u8) -> Option<enigo::MouseButton> {
     }
 }
 
-
 /// The function `key_to_enigo` maps a given key code to the corresponding `enigo::Key` enum variant in
 /// Rust.
-/// 
+///
 /// Arguments:
-/// 
+///
 /// * `key`: The function `key_to_enigo` takes a `u8` key code as input and returns an
 /// `Option<enigo::Key>`. It matches the input key code to specific key mappings and returns the
 /// corresponding `enigo::Key` if a match is found. If no match is
-/// 
+///
 /// Returns:
-/// 
+///
 /// The function `key_to_enigo` takes a `u8` key value and returns an `Option<enigo::Key>`. Inside the
 /// function, there is a match statement that matches the input key value to specific cases and returns
 /// the corresponding `enigo::Key` enum value wrapped in a `Some` variant. If the key value does not

@@ -1,7 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+mod agent;
 mod key_mouse;
 mod screen;
-mod agent;
 fn main() {
     let args: Vec<String> = std::env::args().collect();
 
